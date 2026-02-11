@@ -1,4 +1,3 @@
-# BOT_TOKEN = "8390028953:AAHgptFi9rlIbNDHT4aNBsyf-E5wsmIAcQM"
 
 import os
 
@@ -14,3 +13,4 @@ DB_PATH = os.getenv("DB_PATH", "app.db")
 # Origins مجاز برای CORS (GitHub Pages)
 # مثال: https://abouzarnameh.github.io
 ALLOWED_ORIGINS = [x.strip() for x in os.getenv("ALLOWED_ORIGINS", "*").split(",") if x.strip()]
+
