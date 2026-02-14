@@ -1,39 +1,54 @@
+# db.py
+import os
 import sqlite3
-from config import DB_PATH
 
-def get_conn() -> sqlite3.Connection:
+DB_PATH = os.getenv("DB_PATH", "app.db")
+
+def get_conn():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db() -> None:
+def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
-    # sessions: یک pending برای هر creator
+    # sessions
     cur.execute("""
     CREATE TABLE IF NOT EXISTS sessions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      creator_id INTEGER NOT NULL,
-      status TEXT NOT NULL,
-      created_at_ms INTEGER NOT NULL
-    );
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        creator_id INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at_ms INTEGER NOT NULL,
+        started_at_ms INTEGER
+    )
     """)
 
-    # items: travel_ms + priority + title
+    # items
     cur.execute("""
     CREATE TABLE IF NOT EXISTS items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id INTEGER NOT NULL,
-      title TEXT,
-      travel_ms INTEGER NOT NULL,
-      priority INTEGER NOT NULL DEFAULT 1,
-      created_at_ms INTEGER NOT NULL,
-      FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
-    );
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER NOT NULL,
+        title TEXT,
+        travel_ms INTEGER NOT NULL,
+        priority INTEGER NOT NULL DEFAULT 1,
+        created_at_ms INTEGER NOT NULL,
+        FOREIGN KEY(session_id) REFERENCES sessions(id)
+    )
     """)
 
-    # برای اینکه FK عمل کنه
-    cur.execute("PRAGMA foreign_keys=ON;")
+    # مهاجرت ساده اگر دیتابیس قدیمی بود
+    cur.execute("PRAGMA table_info(sessions);")
+    cols = [r["name"] for r in cur.fetchall()]
+    if "started_at_ms" not in cols:
+        cur.execute("ALTER TABLE sessions ADD COLUMN started_at_ms INTEGER;")
+
+    cur.execute("PRAGMA table_info(items);")
+    icols = [r["name"] for r in cur.fetchall()]
+    if "travel_ms" not in icols and "duration_ms" in icols:
+        # اگر قبلاً duration_ms داشتی، اینجا migrate کامل نمی‌کنیم چون sqlite rename column سخت‌تره
+        # پیشنهاد: دیتابیس را ریست کنی یا migrate جدا بنویسیم.
+        pass
+
     conn.commit()
     conn.close()
